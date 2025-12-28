@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="浩天油气站-油品到站成本价计算器">
+    <meta name="theme-color" content="#1a6dcc">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>油品到站成本计算器</title>
+    
+    <link rel="manifest" id="manifest-placeholder">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+    
+    <style>
+        :root {
+            --primary-color: #1a6dcc;
+            --primary-dark: #0d4d9c;
+            --diesel-color: #2e8b57;
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding-bottom: 40px; /* 增加底部留白 */
+            overscroll-behavior-y: none; /* 防止下拉刷新干扰 */
+        }
+        
+        .container {
+            max-width: 600px; /* 限制最大宽度，平板上更好看 */
+            margin: 0 auto;
+            padding: 15px;
+        }
+        
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 25px 20px;
+            border-radius: 0 0 24px 24px;
+            box-shadow: 0 4px 15px rgba(13, 77, 156, 0.25);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            letter-spacing: 0.5px;
+        }
+        
+        header p {
+            font-size: 0.9rem;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(0, 0, 0, 0.02);
+        }
+        
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 18px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+        }
+        
+        .card-title i {
+            margin-right: 10px;
+            font-size: 1.1em;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #555;
+            font-size: 0.95rem;
+        }
+        
+        .price-input {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e1e5eb;
+            border-radius: 12px;
+            font-size: 1.4rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s;
+            background-color: #f9fafc;
+            color: var(--primary-color);
+        }
+        
+        .price-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background-color: white;
+            box-shadow: 0 0 0 4px rgba(26, 109, 204, 0.1);
+        }
+        
+        .oil-type-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+        
+        .oil-btn {
+            padding: 16px 8px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            background-color: #f0f4f8;
+            color: #666;
+        }
+        
+        .oil-btn i {
+            font-size: 1.4rem;
+            margin-bottom: 6px;
+        }
+        
+        /* 触摸反馈效果 */
+        .oil-btn:active {
+            transform: scale(0.96);
+        }
+
+        .oil-btn.gasoline.active {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 10px rgba(26, 109, 204, 0.3);
+        }
+        
+        .oil-btn.diesel.active {
+            background-color: var(--diesel-color);
+            color: white;
+            box-shadow: 0 4px 10px rgba(46, 139, 87, 0.3);
+        }
+        
+        .result-display {
+            background: linear-gradient(135deg, #f8fafd 0%, #e8f0fa 100%);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            border: 1px solid #dceeff;
+            margin-bottom: 20px;
+        }
+        
+        .result-label {
+            font-size: 0.9rem;
+            color: #777;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .result-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            font-feature-settings: "tnum";
+            line-height: 1.2;
+        }
+        
+        .result-unit {
+            font-size: 1rem;
+            color: #888;
+            margin-left: 4px;
+            font-weight: 500;
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        /* 如果有3个按钮（安装按钮出现时），改变布局 */
+        .action-buttons.has-install {
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        .action-buttons.has-install #install-btn {
+            grid-column: span 2; /* 安装按钮占满一行 */
+        }
+        
+        .action-btn {
+            padding: 14px 10px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .action-btn i { margin-right: 8px; }
+        .action-btn.chart { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        .action-btn.guide { background: linear-gradient(135deg, #f39c12, #d35400); }
+        .action-btn.install { 
+            background: linear-gradient(135deg, #00b894, #00a884); 
+            display: none; /* 默认隐藏，JS控制显示 */
+        }
+        
+        .action-btn:active { transform: scale(0.98); }
+        
+        .history-list {
+            max-height: 350px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
+        }
+        
+        .history-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--primary-color);
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .history-item.diesel { border-left-color: var(--diesel-color); }
+        
+        .history-info { flex: 1; }
+        
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            align-items: baseline;
+        }
+        
+        .history-oil-type { font-weight: 700; font-size: 0.95rem; color: #444; }
+        .history-time { font-size: 0.75rem; color: #999; }
+        
+        .history-details { display: flex; gap: 15px; font-size: 0.9rem; }
+        .history-price { color: #666; }
+        .history-cost { font-weight: 700; color: var(--primary-color); }
+        
+        .delete-history {
+            background: none;
+            border: none;
+            color: #dc3545;
+            padding: 10px;
+            opacity: 0.6;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        .delete-history:active { opacity: 1; }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            background: white;
+            border: 1px solid #eee;
+            color: #555;
+            padding: 10px 18px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .guide-price-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .guide-price-input {
+            width: 100px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: center;
+            background: #fff;
+        }
+        
+        .guide-price-buttons { display: flex; gap: 8px; }
+        .guide-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: white;
+            cursor: pointer;
+        }
+        .guide-btn.save { background-color: #27ae60; }
+        .guide-btn.modify { background-color: #95a5a6; }
+
+        /* 模态框样式优化 */
+        .modal {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+        }
+        .modal-content {
+            border-radius: 20px;
+            padding: 30px 25px;
+        }
+        .modal-btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+        }
+
+        /* 适配小屏幕 */
+        @media (max-width: 360px) {
+            .oil-btn span { font-size: 0.85rem; }
+            .result-value { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="main-page" class="page active">
+        <header>
+            <h1>油品成本计算器</h1>
+            <p>浩天油气站 · 便捷助手</p>
+        </header>
+        
+        <div class="container">
+            <div class="card">
+                <div class="card-title">
+                    <i class="fas fa-calculator"></i>
+                    <span>快速计算</span>
+                </div>
+                
+                <div class="input-group">
+                    <div class="input-label">出厂价（元/吨）</div>
+                    <input type="number" id="factory-price" class="price-input" placeholder="0" inputmode="decimal" min="0" step="0.01">
+                </div>
+                
+                <div class="oil-type-buttons">
+                    <button class="oil-btn gasoline" data-type="含税汽油">
+                        <i class="fas fa-gas-pump"></i>
+                        <span>含税汽油</span>
+                    </button>
+                    <button class="oil-btn gasoline" data-type="不含税汽油">
+                        <i class="fas fa-gas-pump"></i>
+                        <span>不含税汽油</span>
+                    </button>
+                    <button class="oil-btn diesel" data-type="含税柴油">
+                        <i class="fas fa-oil-can"></i>
+                        <span>含税柴油</span>
+                    </button>
+                    <button class="oil-btn diesel" data-type="不含税柴油">
+                        <i class="fas fa-oil-can"></i>
+                        <span>不含税柴油</span>
+                    </button>
+                </div>
+                
+                <div class="result-display">
+                    <div class="result-label">到站成本价</div>
+                    <div>
+                        <span id="result-value" class="result-value">0.00</span>
+                        <span class="result-unit">元/升</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-buttons" id="action-buttons-container">
+                <button id="install-btn" class="action-btn install">
+                    <i class="fas fa-download"></i>
+                    <span>安装到手机</span>
+                </button>
+                <button id="chart-btn" class="action-btn chart">
+                    <i class="fas fa-chart-line"></i>
+                    <span>趋势曲线</span>
+                </button>
+                <button id="guide-btn" class="action-btn guide">
+                    <i class="fas fa-cog"></i>
+                    <span>指导价管理</span>
+                </button>
+            </div>
+            
+            <div class="card">
+                <div class="history-title" style="display:flex; justify-content:space-between; margin-bottom:15px; align-items:center;">
+                    <div class="card-title" style="margin-bottom:0;">
+                        <i class="fas fa-history"></i>
+                        <span>计算记录</span>
+                    </div>
+                    <button id="clear-history" style="background:#f1f3f5; border:none; padding:5px 10px; border-radius:6px; color:#666;">清空</button>
+                </div>
+                
+                <div id="history-list" class="history-list">
+                    <div class="no-data" id="no-history" style="text-align:center; padding:30px; color:#999;">
+                        <i class="fas fa-clipboard-list" style="font-size:2rem; margin-bottom:10px; display:block; opacity:0.3;"></i>
+                        <p>暂无计算记录</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="chart-page" class="page">
+        <header>
+            <h1>价格趋势</h1>
+            <p>基于历史数据的价格波动分析</p>
+        </header>
+        <div class="container">
+            <button id="back-from-chart" class="back-button">
+                <i class="fas fa-arrow-left"></i> <span>返回</span>
+            </button>
+            <div class="card">
+                <div id="chart-container" style="height: 350px; width: 100%;">
+                    <canvas id="price-chart"></canvas>
+                </div>
+                <div class="no-data" id="no-chart-data" style="display: none; text-align:center; padding:50px 0; color:#888;">
+                    暂无数据，请先进行计算
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="guide-page" class="page">
+        <header>
+            <h1>指导价设置</h1>
+            <p>管理各类油品的当前基准价</p>
+        </header>
+        <div class="container">
+            <button id="back-from-guide" class="back-button">
+                <i class="fas fa-arrow-left"></i> <span>返回</span>
+            </button>
+            
+            <div class="card">
+                <div id="guide-list-container">
+                    <div class="guide-price-item">
+                        <div class="guide-price-label">
+                            <div style="font-weight:600; color:#333;">0号柴油</div>
+                            <div style="font-size:0.75rem; color:#999;" id="diesel-time">未设置</div>
+                        </div>
+                        <input type="number" id="diesel-price" class="guide-price-input" inputmode="decimal" placeholder="0.00">
+                        <div class="guide-price-buttons">
+                            <button class="guide-btn save" data-type="diesel">保存</button>
+                        </div>
+                    </div>
+                    <div class="guide-price-item">
+                        <div class="guide-price-label">
+                            <div style="font-weight:600; color:#333;">92号汽油</div>
+                            <div style="font-size:0.75rem; color:#999;" id="gas92-time">未设置</div>
+                        </div>
+                        <input type="number" id="gas92-price" class="guide-price-input" inputmode="decimal" placeholder="0.00">
+                        <div class="guide-price-buttons">
+                            <button class="guide-btn save" data-type="gas92">保存</button>
+                        </div>
+                    </div>
+                    <div class="guide-price-item">
+                        <div class="guide-price-label">
+                            <div style="font-weight:600; color:#333;">95号汽油</div>
+                            <div style="font-size:0.75rem; color:#999;" id="gas95-time">未设置</div>
+                        </div>
+                        <input type="number" id="gas95-price" class="guide-price-input" inputmode="decimal" placeholder="0.00">
+                        <div class="guide-price-buttons">
+                            <button class="guide-btn save" data-type="gas95">保存</button>
+                        </div>
+                    </div>
+                    <div class="guide-price-item" style="border-left: 3px solid #e67e22; padding-left:10px;">
+                        <div class="guide-price-label">
+                            <div style="font-weight:600; color:#e67e22;">布伦特原油</div>
+                            <div style="font-size:0.75rem; color:#999;" id="crude-time">未设置</div>
+                        </div>
+                        <input type="number" id="crude-price" class="guide-price-input" inputmode="decimal" placeholder="0.00">
+                        <div class="guide-price-buttons">
+                            <button class="guide-btn save" data-type="crude">保存</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="universal-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background:white; width:85%; max-width:320px; animation: slideUp 0.3s ease;">
+            <div class="modal-title" style="font-size:1.2rem; font-weight:700; margin-bottom:10px;">提示</div>
+            <div class="modal-message" id="modal-msg" style="color:#666; margin-bottom:25px;">内容</div>
+            <div class="modal-buttons" style="display:flex; justify-content:flex-end; gap:10px;">
+                <button id="modal-cancel" class="modal-btn" style="background:#f1f3f5; color:#555; border:none;">取消</button>
+                <button id="modal-confirm" class="modal-btn" style="background:#dc3545; color:white; border:none;">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 核心逻辑 ---
+
+        // 1. 生成 PWA Manifest (动态 Data URI)
+        // 这是一个蓝色的方块图标 Base64
+        const iconBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAMAAABlApw1AAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAUVBMVEUabaz///8Abaz///8Abaz///8Abaz///8Abaz///8Abaz///8Abaz///8Abaz///8Abaz///8Abaz///8Abaz///8Abaz///8Abaz///8AbaxbKCWUAAAADHRSTlMAM8z/zJnM///M/8xviy4nAAAAAWJLR0QAiAUdSAAAAAd0SU1FB+kMHQwnO1S8B7UAAAFDSURBVHja7dXBJYAwDADBv439d01R8F0gS2ADcyZJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJU9sB/y8C/kFz/7gAAAAldEVYdGRhdGU6Y3JlYXRlADIwMjUtMTItMjlUMTI6Mzk6NTkrMDg6MDBk5vJcAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDI1LTEyLTI5VDEyOjM5OjU5KzA4OjAwS1/iOQAAAABJRU5ErkJggg==";
+
+        const manifest = {
+            "name": "浩天油品计算器",
+            "short_name": "油品计算",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#f5f7fa",
+            "theme_color": "#1a6dcc",
+            "icons": [
+                {
+                    "src": iconBase64,
+                    "sizes": "192x192",
+                    "type": "image/png"
+                },
+                {
+                    "src": iconBase64,
+                    "sizes": "512x512",
+                    "type": "image/png"
+                }
+            ]
+        };
+
+        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        document.getElementById('manifest-placeholder').setAttribute('href', manifestURL);
+
+        // --- 应用逻辑 ---
+
+        const AppState = {
+            currentOilType: null,
+            history: JSON.parse(localStorage.getItem('oilCostHistory') || '[]'),
+            guidePrices: JSON.parse(localStorage.getItem('oilGuidePrices') || JSON.stringify({
+                diesel: { price: null, time: null },
+                gas92: { price: null, time: null },
+                gas95: { price: null, time: null },
+                crude: { price: null, time: null }
+            })),
+            chart: null
+        };
+
+        const DOM = {
+            mainPage: document.getElementById('main-page'),
+            chartPage: document.getElementById('chart-page'),
+            guidePage: document.getElementById('guide-page'),
+            factoryPriceInput: document.getElementById('factory-price'),
+            resultValue: document.getElementById('result-value'),
+            oilTypeButtons: document.querySelectorAll('.oil-btn'),
+            historyList: document.getElementById('history-list'),
+            noHistory: document.getElementById('no-history'),
+            
+            // Modal
+            modal: document.getElementById('universal-modal'),
+            modalMsg: document.getElementById('modal-msg'),
+            modalConfirm: document.getElementById('modal-confirm'),
+            modalCancel: document.getElementById('modal-cancel'),
+            
+            // PWA
+            installBtn: document.getElementById('install-btn'),
+            actionBtnsContainer: document.getElementById('action-buttons-container')
+        };
+
+        // Modal Helper
+        let modalCallback = null;
+        function showModal(msg, onConfirm) {
+            DOM.modalMsg.textContent = msg;
+            DOM.modal.style.display = 'flex';
+            modalCallback = onConfirm;
+        }
+        DOM.modalCancel.onclick = () => DOM.modal.style.display = 'none';
+        DOM.modalConfirm.onclick = () => {
+            if(modalCallback) modalCallback();
+            DOM.modal.style.display = 'none';
+        };
+        // 点击遮罩关闭
+        DOM.modal.onclick = (e) => {
+            if(e.target === DOM.modal) DOM.modal.style.display = 'none';
+        };
+
+        // 计算逻辑
+        function calculate(price, type) {
+            price = parseFloat(price);
+            if(!price || price <= 0) return 0;
+            
+            let divisor = type.includes('汽油') ? 1350 : 1200;
+            let cost = (price + 210) / divisor;
+            return cost.toFixed(2);
+        }
+
+        // 交互逻辑
+        DOM.oilTypeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const price = DOM.factoryPriceInput.value;
+                if (!price) {
+                    // 轻微震动反馈（安卓支持）
+                    if(navigator.vibrate) navigator.vibrate(50);
+                    alert('请输入出厂价');
+                    return;
+                }
+
+                // 移除旧状态
+                document.querySelectorAll('.oil-btn.active').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // 计算
+                const type = btn.dataset.type;
+                const cost = calculate(price, type);
+                
+                // 动画更新数值
+                animateValue(DOM.resultValue, parseFloat(DOM.resultValue.textContent), parseFloat(cost), 300);
+                
+                // 保存历史
+                addHistory(price, cost, type);
+            });
+        });
+
+        // 数值动画
+        function animateValue(obj, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = (progress * (end - start) + start).toFixed(2);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function addHistory(price, cost, type) {
+            const now = new Date();
+            const item = {
+                id: Date.now(),
+                type: type,
+                price: parseFloat(price).toFixed(2),
+                cost: cost,
+                time: now.toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}),
+                dateStr: now.toLocaleDateString('zh-CN') // For chart
+            };
+            
+            AppState.history.unshift(item);
+            if(AppState.history.length > 50) AppState.history.pop();
+            localStorage.setItem('oilCostHistory', JSON.stringify(AppState.history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            if(AppState.history.length === 0) {
+                DOM.historyList.innerHTML = '';
+                DOM.historyList.appendChild(DOM.noHistory);
+                DOM.noHistory.style.display = 'block';
+                return;
+            }
+            
+            DOM.noHistory.style.display = 'none';
+            DOM.historyList.innerHTML = AppState.history.map(item => `
+                <div class="history-item ${item.type.includes('柴油') ? 'diesel' : ''}">
+                    <div class="history-info">
+                        <div class="history-header">
+                            <span class="history-oil-type">${item.type}</span>
+                            <span class="history-time">${item.time}</span>
+                        </div>
+                        <div class="history-details">
+                            <span class="history-price">出: ${item.price}</span>
+                            <span class="history-cost">到: ${item.cost}</span>
+                        </div>
+                    </div>
+                    <button class="delete-history" onclick="deleteHistoryItem(${item.id})">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        window.deleteHistoryItem = (id) => {
+            showModal('确定删除这条记录吗？', () => {
+                AppState.history = AppState.history.filter(i => i.id !== id);
+                localStorage.setItem('oilCostHistory', JSON.stringify(AppState.history));
+                renderHistory();
+            });
+        };
+
+        document.getElementById('clear-history').addEventListener('click', () => {
+            if(AppState.history.length === 0) return;
+            showModal('确定清空所有记录吗？', () => {
+                AppState.history = [];
+                localStorage.setItem('oilCostHistory', '[]');
+                renderHistory();
+            });
+        });
+
+        // --- 页面切换 ---
+        const switchPage = (id) => {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            const target = document.getElementById(id);
+            target.classList.add('active');
+            
+            if(id === 'chart-page') initChart();
+            if(id === 'guide-page') loadGuidePrices();
+        };
+
+        document.getElementById('chart-btn').onclick = () => switchPage('chart-page');
+        document.getElementById('guide-btn').onclick = () => switchPage('guide-page');
+        document.getElementById('back-from-chart').onclick = () => switchPage('main-page');
+        document.getElementById('back-from-guide').onclick = () => switchPage('main-page');
+
+        // --- 图表 ---
+        function initChart() {
+            const ctx = document.getElementById('price-chart').getContext('2d');
+            if(AppState.chart) AppState.chart.destroy();
+            
+            if(AppState.history.length === 0) {
+                document.getElementById('no-chart-data').style.display = 'block';
+                return;
+            }
+            document.getElementById('no-chart-data').style.display = 'none';
+
+            // 数据处理：按日期分组
+            const reversedHistory = [...AppState.history].reverse();
+            const labels = [...new Set(reversedHistory.map(i => i.dateStr))];
+            
+            const datasets = [];
+            const types = [...new Set(reversedHistory.map(i => i.type))];
+            
+            const colors = {
+                '含税汽油': '#1a6dcc', '不含税汽油': '#4a90e2',
+                '含税柴油': '#2e8b57', '不含税柴油': '#3cb371'
+            };
+
+            types.forEach(type => {
+                const data = labels.map(date => {
+                    const found = reversedHistory.findLast(h => h.dateStr === date && h.type === type);
+                    return found ? found.cost : null;
+                });
+                
+                datasets.push({
+                    label: type,
+                    data: data,
+                    borderColor: colors[type] || '#666',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    spanGaps: true
+                });
+            });
+
+            AppState.chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        y: { beginAtZero: false }
+                    }
+                }
+            });
+        }
+
+        // --- 指导价 ---
+        function loadGuidePrices() {
+            const map = {
+                'diesel': DOM.guidePage.querySelector('#diesel-price'),
+                'gas92': DOM.guidePage.querySelector('#gas92-price'),
+                'gas95': DOM.guidePage.querySelector('#gas95-price'),
+                'crude': DOM.guidePage.querySelector('#crude-price')
+            };
+            
+            for(let key in map) {
+                if(AppState.guidePrices[key].price) {
+                    map[key].value = AppState.guidePrices[key].price;
+                    document.getElementById(key + '-time').textContent = '更新: ' + AppState.guidePrices[key].time;
+                }
+            }
+        }
+
+        document.querySelectorAll('.guide-btn.save').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
+                const input = document.getElementById(type + '-price');
+                const val = input.value;
+                if(!val) return;
+                
+                AppState.guidePrices[type] = {
+                    price: val,
+                    time: new Date().toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'})
+                };
+                localStorage.setItem('oilGuidePrices', JSON.stringify(AppState.guidePrices));
+                loadGuidePrices();
+                
+                // 简单的保存反馈
+                const originalText = btn.textContent;
+                btn.textContent = '已保存';
+                btn.style.backgroundColor = '#2ecc71';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.backgroundColor = '';
+                }, 1000);
+            });
+        });
+
+        // --- PWA 安装逻辑 (关键) ---
+        let deferredPrompt;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // 防止 Chrome 67 及更早版本自动显示提示
+            e.preventDefault();
+            // 暂存事件以便稍后触发
+            deferredPrompt = e;
+            // 更新 UI 通知用户可以添加到主屏幕
+            DOM.installBtn.style.display = 'flex';
+            DOM.actionBtnsContainer.classList.add('has-install');
+            console.log('PWA 安装事件已捕获');
+        });
+
+        DOM.installBtn.addEventListener('click', (e) => {
+            // 隐藏按钮
+            DOM.installBtn.style.display = 'none';
+            DOM.actionBtnsContainer.classList.remove('has-install');
+            
+            if (deferredPrompt) {
+                // 显示安装提示
+                deferredPrompt.prompt();
+                // 等待用户响应
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('用户接受安装');
+                    } else {
+                        console.log('用户拒绝安装');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        });
+
+        // 初始化
+        renderHistory();
+
+        // 尝试注册一个空的 ServiceWorker 模拟 (为了满足某些浏览器的 PWA 标准)
+        // 注意：在单文件模式下，Service Worker 功能受限，主要依靠 Manifest 和 Meta 标签
+        if ('serviceWorker' in navigator) {
+            // 创建一个内联的空 Service Worker
+            const swContent = "self.addEventListener('fetch', function(event) { /* 空操作，允许离线缓存由浏览器自动处理 */ });";
+            const swBlob = new Blob([swContent], {type: 'text/javascript'});
+            const swUrl = URL.createObjectURL(swBlob);
+            
+            navigator.serviceWorker.register(swUrl).then(function(registration) {
+                console.log('ServiceWorker registered');
+            }, function(err) {
+                console.log('ServiceWorker failed: ', err);
+            });
+        }
+    </script>
+</body>
+</html>
